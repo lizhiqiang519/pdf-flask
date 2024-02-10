@@ -1,9 +1,12 @@
 from datetime import datetime
-from flask import render_template, request
+from flask import render_template, request, jsonify
 from run import app
 from wxcloudrun.dao import delete_counterbyid, query_counterbyid, insert_counter, update_counterbyid
 from wxcloudrun.model import Counters
 from wxcloudrun.response import make_succ_empty_response, make_succ_response, make_err_response
+
+from pathlib import Path
+from openai import OpenAI
 
 
 @app.route('/')
@@ -64,3 +67,53 @@ def get_count():
     """
     counter = Counters.query.filter(Counters.id == 1).first()
     return make_succ_response(0) if counter is None else make_succ_response(counter.count)
+
+
+@app.route('/file_extraction_and_chat_completion', methods=['POST'])
+def file_extraction_and_chat_completion():
+    # 从请求中获取参数
+    file_path = request.json.get('filePath')
+    role_content = request.json.get('roleContent')
+
+    # 用你的实际 API 密钥替换 "MOONSHOT_API_KEY"
+    client = OpenAI(
+        api_key="Y2xlNTY0a2JidmRqa2ZqazU3dDA6bXNrLUNSN0dGVmU0UHJvUzlialpGZnVjTzJud3FrNU0=",  # 确保替换为你的 API 密钥
+        base_url="https://api.moonshot.cn/v1",
+    )
+
+    try:
+        # 尝试上传文件并提取内容
+        file_object = client.files.create(
+            file=Path(file_path),
+            purpose="file-extract")
+
+        file_content = client.files.content(file_id=file_object.id).text
+
+        # 构建请求消息
+        messages=[
+            {
+                "role": "system",
+                "content": role_content,
+            },
+            {
+                "role": "system",
+                "content": file_content,
+            },
+            {
+                "role": "user",
+                "content": "针对文件内容，根据里面的知识点，提供相关测试题目。记得添加序号。返回json格式",
+            },
+        ]
+
+        # 调用 chat-completion, 获取回答
+        completion = client.chat.completions.create(
+          model="moonshot-v1-128k",
+          messages=messages,
+          temperature=0.3,
+        )
+
+        # 返回处理结果的字符串
+        return jsonify(completion.choices[0].message['content'])
+
+    except Exception as e:
+        return jsonify({"error": str(e)})
