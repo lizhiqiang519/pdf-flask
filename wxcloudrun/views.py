@@ -72,7 +72,7 @@ def get_count():
 @app.route('/file_extraction_and_chat_completion', methods=['POST'])
 def file_extraction_and_chat_completion():
     # 从请求中获取参数
-    file_path = "/prod-5grp83vy40b195a5.7072-prod-5grp83vy40b195a5-1306680641/pdf/1707579194138-219.pdf"
+    file_path = "cloud://prod-5grp83vy40b195a5.7072-prod-5grp83vy40b195a5-1306680641/pdf/1707623032187-17.pdf"
     role_content = request.json.get('roleContent')
 
     # 用你的实际 API 密钥替换 "MOONSHOT_API_KEY"
