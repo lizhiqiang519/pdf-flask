@@ -8,6 +8,13 @@ from wxcloudrun.response import make_succ_empty_response, make_succ_response, ma
 from pathlib import Path
 from openai import OpenAI
 
+from flask import Flask, request, jsonify
+import os
+from werkzeug.utils import secure_filename
+import requests
+
+app = Flask(__name__)
+
 
 @app.route('/')
 def index():
@@ -71,26 +78,34 @@ def get_count():
 
 @app.route('/file_extraction_and_chat_completion', methods=['POST'])
 def file_extraction_and_chat_completion():
-    # 从请求中获取参数
-    file_path = "cloud://prod-5grp83vy40b195a5.7072-prod-5grp83vy40b195a5-1306680641/pdf/1707623032187-17.pdf"
-    role_content = request.json.get('roleContent')
+    # 检查是否有文件在请求中
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"})
+    file = request.files['file']
+    role_content = request.form.get('roleContent', '')  # 从表单数据中获取roleContent
 
-    # 用你的实际 API 密钥替换 "MOONSHOT_API_KEY"
+    # 保存文件到临时目录
+    filename = secure_filename(file.filename)
+    file_path = os.path.join('/tmp', filename)
+    file.save(file_path)
+
+    # 使用你的实际API密钥替换下方字符串
     client = OpenAI(
-        api_key="Y2xlNTY0a2JidmRqa2ZqazU3dDA6bXNrLUNSN0dGVmU0UHJvUzlialpGZnVjTzJud3FrNU0=",  # 确保替换为你的 API 密钥
+        api_key="Y2xlNTY0a2JidmRqa2ZqazU3dDA6bXNrLUNSN0dGVmU0UHJvUzlialpGZnVjTzJud3FrNU0=",
         base_url="https://api.moonshot.cn/v1",
     )
 
     try:
         # 尝试上传文件并提取内容
-        file_object = client.files.create(
-            file=Path(file_path),
-            purpose="file-extract")
+        with open(file_path, 'rb') as f:
+            file_object = client.files.create(
+                file=f,
+                purpose="file-extract")
 
         file_content = client.files.content(file_id=file_object.id).text
 
         # 构建请求消息
-        messages=[
+        messages = [
             {
                 "role": "system",
                 "content": role_content,
@@ -105,15 +120,20 @@ def file_extraction_and_chat_completion():
             },
         ]
 
-        # 调用 chat-completion, 获取回答
+        # 调用chat-completion，获取回答
         completion = client.chat.completions.create(
-          model="moonshot-v1-128k",
-          messages=messages,
-          temperature=0.3,
+            model="moonshot-v1-128k",
+            messages=messages,
+            temperature=0.3,
         )
+
+        # 清理：删除服务器上的临时文件
+        os.remove(file_path)
 
         # 返回处理结果的字符串
         return jsonify(completion.choices[0].message['content'])
 
     except Exception as e:
+        # 清理：删除服务器上的临时文件
+        os.remove(file_path)
         return jsonify({"error": str(e)})
