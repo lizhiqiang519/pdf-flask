@@ -78,16 +78,22 @@ def get_count():
 
 @app.route('/file_extraction_and_chat_completion', methods=['POST'])
 def file_extraction_and_chat_completion():
+    app.logger.info("Processing new request")
+
     # 检查是否有文件在请求中
     if 'file' not in request.files:
+        app.logger.error("No file part in the request")
         return jsonify({"error": "No file part"})
+
     file = request.files['file']
     role_content = request.form.get('roleContent', '')  # 从表单数据中获取roleContent
+    app.logger.info(f"Received file: {file.filename} and roleContent: {role_content}")
 
     # 保存文件到临时目录
     filename = secure_filename(file.filename)
     file_path = os.path.join('/tmp', filename)
     file.save(file_path)
+    app.logger.info(f"File saved to temporary path: {file_path}")
 
     # 使用你的实际API密钥替换下方字符串
     client = OpenAI(
@@ -101,23 +107,16 @@ def file_extraction_and_chat_completion():
             file_object = client.files.create(
                 file=f,
                 purpose="file-extract")
+            app.logger.info("File uploaded successfully for content extraction")
 
         file_content = client.files.content(file_id=file_object.id).text
+        app.logger.info("Content extracted successfully")
 
         # 构建请求消息
         messages = [
-            {
-                "role": "system",
-                "content": role_content,
-            },
-            {
-                "role": "system",
-                "content": file_content,
-            },
-            {
-                "role": "user",
-                "content": "针对文件内容，根据里面的知识点，提供相关测试题目。记得添加序号。返回json格式",
-            },
+            {"role": "system", "content": role_content},
+            {"role": "system", "content": file_content},
+            {"role": "user", "content": "针对文件内容，根据里面的知识点，提供相关测试题目。记得添加序号。返回json格式"},
         ]
 
         # 调用chat-completion，获取回答
@@ -126,9 +125,11 @@ def file_extraction_and_chat_completion():
             messages=messages,
             temperature=0.3,
         )
+        app.logger.info("Chat completion successful")
 
         # 清理：删除服务器上的临时文件
         os.remove(file_path)
+        app.logger.info("Temporary file removed")
 
         # 返回处理结果的字符串
         return jsonify(completion.choices[0].message['content'])
@@ -136,4 +137,5 @@ def file_extraction_and_chat_completion():
     except Exception as e:
         # 清理：删除服务器上的临时文件
         os.remove(file_path)
+        app.logger.error(f"An error occurred: {e}")
         return jsonify({"error": str(e)})
