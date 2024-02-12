@@ -78,64 +78,40 @@ def get_count():
 
 @app.route('/file_extraction_and_chat_completion', methods=['POST'])
 def file_extraction_and_chat_completion():
-    app.logger.info("Processing new request")
+    data = request.json
+    fileID = data.get('fileID')
 
-    # 检查是否有文件在请求中
-    if 'file' not in request.files:
-        app.logger.error("No file part in the request")
-        return jsonify({"error": "No file part"})
+    if not fileID:
+        return jsonify({"error": "No fileID provided"})
 
-    file = request.files['file']
-    role_content = request.form.get('roleContent', '')  # 从表单数据中获取roleContent
-    app.logger.info(f"Received file: {file.filename} and roleContent: {role_content}")
+    # 假设get_download_url是获取文件下载链接的函数，你需要根据实际情况实现它
+    download_url = get_download_url(fileID)
+    if not download_url:
+        return jsonify({"error": "Failed to get download URL"})
 
-    # 保存文件到临时目录
-    filename = secure_filename(file.filename)
-    file_path = os.path.join('/tmp', filename)
-    file.save(file_path)
-    app.logger.info(f"File saved to temporary path: {file_path}")
+    # 下载文件
+    response = requests.get(download_url)
+    if response.status_code != 200:
+        return jsonify({"error": "Failed to download file"})
 
-    # 使用你的实际API密钥替换下方字符串
-    client = OpenAI(
-        api_key="Y2xlNTY0a2JidmRqa2ZqazU3dDA6bXNrLUNSN0dGVmU0UHJvUzlialpGZnVjTzJud3FrNU0=",
-        base_url="https://api.moonshot.cn/v1",
-    )
+    # 假设保存到临时文件进行处理
+    temp_path = f'/tmp/{os.path.basename(download_url)}'
+    with open(temp_path, 'wb') as temp_file:
+        temp_file.write(response.content)
 
-    try:
-        # 尝试上传文件并提取内容
-        with open(file_path, 'rb') as f:
-            file_object = client.files.create(
-                file=f,
-                purpose="file-extract")
-            app.logger.info("File uploaded successfully for content extraction")
+    # 这里调用OpenAI API进行内容提取，假设已经实现
+    extracted_content = extract_content_with_openai(temp_path)
 
-        file_content = client.files.content(file_id=file_object.id).text
-        app.logger.info("Content extracted successfully")
+    # 清理临时文件
+    os.remove(temp_path)
 
-        # 构建请求消息
-        messages = [
-            {"role": "system", "content": role_content},
-            {"role": "system", "content": file_content},
-            {"role": "user", "content": "针对文件内容，根据里面的知识点，提供相关测试题目。记得添加序号。返回json格式"},
-        ]
+    return jsonify({"extractedContent": extracted_content})
 
-        # 调用chat-completion，获取回答
-        completion = client.chat.completions.create(
-            model="moonshot-v1-128k",
-            messages=messages,
-            temperature=0.3,
-        )
-        app.logger.info("Chat completion successful")
+def get_download_url(fileID):
+    # 实现根据fileID获取下载链接的逻辑
+    return "https://example.com/path/to/file"
 
-        # 清理：删除服务器上的临时文件
-        os.remove(file_path)
-        app.logger.info("Temporary file removed")
-
-        # 返回处理结果的字符串
-        return jsonify(completion.choices[0].message['content'])
-
-    except Exception as e:
-        # 清理：删除服务器上的临时文件
-        os.remove(file_path)
-        app.logger.error(f"An error occurred: {e}")
-        return jsonify({"error": str(e)})
+def extract_content_with_openai(file_path):
+    # 使用OpenAI进行内容提取的逻辑
+    # 返回提取的内容
+    return "Extracted content here"
