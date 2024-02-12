@@ -78,40 +78,52 @@ def get_count():
 
 @app.route('/file_extraction_and_chat_completion', methods=['POST'])
 def file_extraction_and_chat_completion():
+    app.logger.info("Received a new request for file extraction and chat completion")
+
     data = request.json
     fileID = data.get('fileID')
 
     if not fileID:
+        app.logger.error("No fileID provided in the request")
         return jsonify({"error": "No fileID provided"})
 
-    # 假设get_download_url是获取文件下载链接的函数，你需要根据实际情况实现它
+    app.logger.info(f"Attempting to get download URL for fileID: {fileID}")
     download_url = get_download_url(fileID)
+
     if not download_url:
+        app.logger.error(f"Failed to get download URL for fileID: {fileID}")
         return jsonify({"error": "Failed to get download URL"})
 
-    # 下载文件
+    app.logger.info(f"Downloading file from URL: {download_url}")
     response = requests.get(download_url)
+
     if response.status_code != 200:
+        app.logger.error(f"Failed to download file from URL: {download_url}")
         return jsonify({"error": "Failed to download file"})
 
-    # 假设保存到临时文件进行处理
     temp_path = f'/tmp/{os.path.basename(download_url)}'
+    app.logger.info(f"Saving downloaded file to temporary path: {temp_path}")
+
     with open(temp_path, 'wb') as temp_file:
         temp_file.write(response.content)
 
-    # 这里调用OpenAI API进行内容提取，假设已经实现
+    app.logger.info("Extracting content from the PDF using OpenAI")
     extracted_content = extract_content_with_openai(temp_path)
 
-    # 清理临时文件
+    app.logger.info("Cleaning up: removing temporary file")
     os.remove(temp_path)
 
+    app.logger.info("Returning extracted content to the client")
     return jsonify({"extractedContent": extracted_content})
 
+
 def get_download_url(fileID):
-    # 实现根据fileID获取下载链接的逻辑
+    # Placeholder for actual implementation
+    app.logger.debug(f"Mocking download URL retrieval for fileID: {fileID}")
     return "https://example.com/path/to/file"
 
+
 def extract_content_with_openai(file_path):
-    # 使用OpenAI进行内容提取的逻辑
-    # 返回提取的内容
+    # Placeholder for actual implementation
+    app.logger.debug(f"Mocking content extraction for file at: {file_path}")
     return "Extracted content here"
