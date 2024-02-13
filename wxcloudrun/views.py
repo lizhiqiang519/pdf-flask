@@ -133,6 +133,8 @@ def extract_content_with_openai(file_path):
 
 @app.route('/download-pdf', methods=['POST'])
 def download_pdf():
+    app.logger.info('1231235656223')
+
     download_url = request.json.get('downloadUrl')
     if not download_url:
         app.logger.error('Missing download URL')
