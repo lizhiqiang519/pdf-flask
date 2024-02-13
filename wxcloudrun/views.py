@@ -5,12 +5,8 @@ from wxcloudrun.dao import delete_counterbyid, query_counterbyid, insert_counter
 from wxcloudrun.model import Counters
 from wxcloudrun.response import make_succ_empty_response, make_succ_response, make_err_response
 
-from pathlib import Path
-from openai import OpenAI
-
 from flask import Flask, request, jsonify
 import os
-from werkzeug.utils import secure_filename
 import requests
 import logging
 
